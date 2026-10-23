@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#10141e">
+<title>Into the Void — motion tool</title>
+<style>
+:root{color-scheme:dark;--ink:#f8f4e9;--muted:#a9a7a0;--line:#ffffff1c;--panel:#11151feF;--accent:#f3a112}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#10141e;color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.panel{position:fixed;right:18px;top:18px;bottom:18px;width:286px;max-width:calc(100vw - 24px);overflow:auto;padding:24px 20px 18px;background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 70px #0008;backdrop-filter:blur(22px);scrollbar-width:thin;scrollbar-color:#ffffff35 transparent;transition:transform .25s ease,opacity .25s ease}
+.panel.hidden{transform:translateX(calc(100% + 24px));opacity:0;pointer-events:none}
+.eyebrow{color:#f3a112;font-size:10px;font-weight:700;letter-spacing:.22em;text-transform:uppercase}
+h1{font:500 28px/1.1 Georgia,serif;letter-spacing:-.04em;margin:10px 0 8px}
+.intro{margin:0;color:#c5c2ba;font-size:12px}
+.byline{margin:12px 0 22px;color:var(--muted);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.section{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}
+.section-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:13px;color:#e8e4db;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+.slider{margin:0 0 15px}
+.slider-head{display:flex;justify-content:space-between;margin-bottom:7px;font-size:12px}
+.value{color:#f7b631;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;height:4px;margin:0;accent-color:#f3a112;cursor:pointer}
+select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:#ffffff0a;color:var(--ink);font:inherit}
+select option{background:#171b25}
+.swatches{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.swatch{width:24px;height:24px;border:2px solid #ffffff55;border-radius:50%;padding:0;cursor:pointer}
+.swatch.selected{outline:2px solid var(--ink);outline-offset:2px}
+.color-row{display:flex;align-items:center;gap:9px}
+.background-row{display:flex;align-items:center;justify-content:space-between;margin-top:12px;color:#c5c2ba;font-size:11px}
+.cursor-control{display:flex;align-items:center;gap:8px;margin-top:5px;color:#c5c2ba;font-size:11px;cursor:pointer}
+.cursor-control input{accent-color:#f3a112}
+input[type=color]{width:38px;height:34px;padding:3px;border:1px solid var(--line);border-radius:8px;background:#ffffff0a;cursor:pointer}
+.color-row button,.actions button{border:1px solid var(--line);border-radius:9px;background:#ffffff0a;color:var(--ink);font:inherit;cursor:pointer}
+.color-row button{height:34px;padding:0 12px;font-size:11px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.actions button{min-height:38px;padding:8px;font-size:11px;transition:background .15s,border-color .15s}
+.actions button:hover,.color-row button:hover{background:#ffffff18;border-color:#ffffff45}
+.actions .primary{grid-column:span 2;background:#f3a112;color:#17130c;border-color:#f3a112;font-weight:700}
+.actions .primary:hover{background:#ffc248}
+.shortcut{color:#99968f;font-size:10px}
+.status{min-height:16px;margin:11px 0 0;color:#f3b63c;font-size:11px}
+.rec{position:fixed;left:22px;top:20px;padding:7px 11px;border:1px solid #ff575788;border-radius:20px;background:#251419;color:#ff7777;font-size:11px;font-weight:700;letter-spacing:.08em;animation:pulse 1s infinite alternate}
+.rec[hidden]{display:none}
+.toggle{position:fixed;right:18px;top:18px;z-index:2;width:40px;height:40px;border:1px solid var(--line);border-radius:12px;background:#11151fcc;color:var(--ink);font-size:18px;cursor:pointer}
+.panel:not(.hidden)~.toggle{opacity:0;pointer-events:none}
+@keyframes pulse{to{opacity:.55}}
+@media(max-width:520px){.panel{top:12px;right:12px;bottom:12px;width:270px;padding:20px 17px}.toggle{top:12px;right:12px}}
+</style>
+</head>
+<body>
+<canvas id="canvas" aria-label="Animated radial wave artwork"></canvas>
+<div class="rec" id="rec" hidden>● REC</div>
+<aside class="panel" id="panel">
+  <div class="eyebrow">Motion study · No. 001</div>
+  <h1>Into the Void</h1>
+  <p class="intro">A living, looping universe for your sound.</p>
+  <p class="byline">Designed by Rimjhim</p>
+  <section class="section"><div class="section-title"><span>Shape the scene</span><span>01 — 07</span></div><div id="sliders"></div>
+    <label class="cursor-control"><input id="cursorMode" type="checkbox" checked> Move origin with cursor</label>
+  </section>
+  <section class="section"><div class="section-title"><label for="lineStyle">Line style</label></div>
+    <select id="lineStyle" aria-label="Line style"><option value="wave">Flowing wave</option><option value="zigzag">Zigzag</option><option value="straight">Straight rays</option></select>
+  </section>
+  <section class="section"><div class="section-title"><label for="format">Canvas format</label></div>
+    <select id="format" aria-label="Canvas format"><option value="screen">Fit screen</option><option value="16:9">16 : 9</option><option value="9:16">9 : 16</option><option value="1:1">1 : 1</option><option value="4:5">4 : 5</option></select>
+  </section>
+  <section class="section"><div class="section-title"><span>Line colors</span><span>+ Add your own</span></div>
+    <div class="swatches" id="swatches"></div>
+    <div class="color-row"><input id="colorPicker" type="color" aria-label="Choose a color"><button id="addColor" type="button">Add color</button></div>
+    <div class="background-row"><label for="backgroundPicker">Background color</label><input id="backgroundPicker" type="color" value="#10141e" aria-label="Choose background color"></div>
+  </section>
+  <section class="section"><div class="section-title"><span>Make it yours</span><span>02</span></div>
+    <div class="actions">
+      <button class="primary" id="play" type="button">Pause animation <span class="shortcut">SPACE</span></button>
+      <button id="random" type="button">Randomize <span class="shortcut">R</span></button>
+      <button id="reset" type="button">Reset</button>
+      <button id="save" type="button">Save PNG <span class="shortcut">S</span></button>
+      <button id="record" type="button">Record 5 sec <span class="shortcut">V</span></button>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+  </section>
+</aside>
+<button class="toggle" id="toggle" type="button" aria-label="Hide controls" title="Hide controls (H)">×</button>
+<script>
+// SETTINGS
+const SLIDERS = [
+  {id:"x",label:"Origin · X axis",min:0,max:100,step:1,value:50},
+  {id:"y",label:"Origin · Y axis",min:0,max:100,step:1,value:50},
+  {id:"shape",label:"Wave shape · straight to wavy",min:0,max:100,step:1,value:68},
+  {id:"count",label:"Number of lines",min:0,max:200,step:1,value:96},
+  {id:"lineWidth",label:"Line width",min:1,max:12,step:1,value:3},
+  {id:"speed",label:"Wave cycles · per 8 seconds",min:0,max:8,step:1,value:3},
+  {id:"rotation",label:"Rotation · turns per loop",min:-4,max:4,step:1,value:1}
+];
+const COLORS = {background:"#10141e",palette:["#f5ae13","#f36b0b","#fbef51","#f7f1dc","#27384d","#080b11"]};
+
+// STATE
+const canvas=document.querySelector("#canvas"),ctx=canvas.getContext("2d");
+const panel=document.querySelector("#panel"),status=document.querySelector("#status");
+const values=Object.fromEntries(SLIDERS.map(s=>[s.id,s.value]));
+let palette=[...COLORS.palette],selectedColor=0,format="screen",lineStyle="wave",background=COLORS.background,width=0,height=0,dpr=1;
+let paused=false,elapsed=0,lastFrame=0,recording=false,recorder=null,recordingUrl=null,cursorMode=true;
+const LOOP=8;
+
+// SETUP
+function buildSliders(){
+  const host=document.querySelector("#sliders");
+  SLIDERS.forEach(s=>{
+    const wrap=document.createElement("div");wrap.className="slider";
+    wrap.innerHTML=`<div class="slider-head"><label for="${s.id}">${s.label}</label><output class="value" id="${s.id}-value"></output></div><input id="${s.id}" type="range" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.value}">`;
+    const input=wrap.querySelector("input");
+    input.addEventListener("input",()=>{values[s.id]=Number(input.value);showValue(s)});
+    host.append(wrap);showValue(s);
+  });
+}
+function showValue(s){const output=document.querySelector(`#${s.id}-value`);output.value=values[s.id];output.textContent=values[s.id];}
+function resize(){
+  const rect=canvas.getBoundingClientRect();dpr=Math.min(window.devicePixelRatio||1,2);
+  canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);
+  width=rect.width;height=rect.height;ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+function buildSwatches(){
+  const host=document.querySelector("#swatches");host.replaceChildren();
+  palette.forEach((color,index)=>{
+    const swatch=document.createElement("button");swatch.type="button";swatch.className="swatch";
+    swatch.style.background=color;swatch.title=`Use ${color}`;swatch.setAttribute("aria-label",`Use color ${color}`);
+    swatch.classList.toggle("selected",index===selectedColor);
+    swatch.addEventListener("click",()=>{selectedColor=index;buildSwatches()});host.append(swatch);
+  });
+  document.querySelector("#colorPicker").value=palette[selectedColor]||COLORS.palette[0];
+}
+
+// UPDATE
+function dimensions(){
+  if(format==="screen")return [width,height];
+  const [rw,rh]=format.split(":").map(Number),ratio=rw/rh;
+  return width/height>ratio?[height*ratio,height]:[width,width/ratio];
+}
+function update(time){
+  if(!lastFrame)lastFrame=time;
+  if(!paused)elapsed+=(time-lastFrame)/1000;
+  lastFrame=time;
+  draw((elapsed%LOOP)/LOOP);
+  requestAnimationFrame(update);
+}
+
+// DRAW
+function draw(loopPhase){
+  ctx.fillStyle=background;ctx.fillRect(0,0,width,height);
+  const [w,h]=dimensions(),ox=(width-w)/2,oy=(height-h)/2;
+  const cx=ox+w*values.x/100,cy=oy+h*values.y/100;
+  const maxR=Math.hypot(Math.max(cx-ox,ox+w-cx),Math.max(cy-oy,oy+h-cy))*1.3;
+  const count=values.count,amplitude=Math.min(w,h)*.075*values.shape/100;
+  const rotation=loopPhase*Math.PI*2*values.rotation;
+  ctx.save();ctx.beginPath();ctx.rect(ox,oy,w,h);ctx.clip();
+  ctx.lineWidth=values.lineWidth;ctx.lineCap="round";
+  for(let i=0;i<count;i++){
+    const angle=i/count*Math.PI*2+rotation;
+    const color=palette[(i+selectedColor)%palette.length];
+    ctx.beginPath();ctx.strokeStyle=color;
+    for(let p=0;p<=20;p++){
+      const t=p/20,r=maxR*t;
+      const phase=t*Math.PI*8-values.speed*loopPhase*Math.PI*2+i*.18;
+      const wave=lineStyle==="straight"?0:lineStyle==="zigzag"?Math.sign(Math.sin(phase)):Math.sin(phase);
+      const offset=wave*amplitude*Math.sin(t*Math.PI*.82);
+      const x=cx+Math.cos(angle)*r+Math.cos(angle+Math.PI/2)*offset;
+      const y=cy+Math.sin(angle)*r+Math.sin(angle+Math.PI/2)*offset;
+      if(p===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+  const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,Math.min(w,h)*.18);
+  glow.addColorStop(0,"rgba(255,244,213,.11)");glow.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=glow;ctx.fillRect(ox,oy,w,h);
+}
+
+// INPUT
+function setValues(next){
+  SLIDERS.forEach(s=>{values[s.id]=next[s.id];const input=document.querySelector(`#${s.id}`);input.value=values[s.id];showValue(s)});
+}
+function randomize(){
+  const next={};SLIDERS.forEach(s=>{const steps=Math.round((s.max-s.min)/s.step);next[s.id]=s.min+Math.round(Math.random()*steps)*s.step});
+  setValues(next);
+}
+function reset(){setValues(Object.fromEntries(SLIDERS.map(s=>[s.id,s.value])))}
+function togglePanel(){
+  panel.classList.toggle("hidden");
+  const hidden=panel.classList.contains("hidden");
+  document.querySelector("#toggle").textContent=hidden?"☰":"×";
+  document.querySelector("#toggle").setAttribute("aria-label",hidden?"Show controls":"Hide controls");
+}
+function handleKey(event){
+  if(event.repeat||event.ctrlKey||event.metaKey||event.altKey)return;
+  const target=event.target;
+  if(target instanceof HTMLElement&&(target.isContentEditable||["INPUT","TEXTAREA","SELECT"].includes(target.tagName)))return;
+  if(event.code==="Space"){event.preventDefault();togglePlayback()}
+  else if(event.key.toLowerCase()==="h")togglePanel();
+  else if(event.key.toLowerCase()==="r")randomize();
+  else if(event.key.toLowerCase()==="s")savePNG();
+  else if(event.key.toLowerCase()==="v")recordVideo();
+}
+function togglePlayback(){
+  paused=!paused;lastFrame=0;
+  document.querySelector("#play").innerHTML=`${paused?"Play":"Pause"} animation <span class="shortcut">SPACE</span>`;
+}
+
+// UI
+function setStatus(message){status.textContent=message;clearTimeout(setStatus.timer);setStatus.timer=setTimeout(()=>status.textContent="",3500)}
+function moveOrigin(event){
+  if(!cursorMode)return;
+  const rect=canvas.getBoundingClientRect(),[w,h]=dimensions(),ox=(width-w)/2,oy=(height-h)/2;
+  values.x=Math.round(Math.max(0,Math.min(100,(event.clientX-rect.left-ox)/w*100)));
+  values.y=Math.round(Math.max(0,Math.min(100,(event.clientY-rect.top-oy)/h*100)));
+  for(const id of ["x","y"]){const slider=SLIDERS.find(item=>item.id===id);document.querySelector(`#${id}`).value=values[id];showValue(slider)}
+}
+function initUI(){
+  buildSliders();buildSwatches();window.addEventListener("resize",resize);
+  document.querySelector("#format").addEventListener("change",event=>{format=event.target.value});
+  document.querySelector("#lineStyle").addEventListener("change",event=>{lineStyle=event.target.value});
+  document.querySelector("#backgroundPicker").addEventListener("input",event=>{background=event.target.value});
+  document.querySelector("#cursorMode").addEventListener("change",event=>{cursorMode=event.target.checked});
+  canvas.addEventListener("pointermove",moveOrigin);
+  canvas.addEventListener("pointerdown",moveOrigin);
+  document.querySelector("#addColor").addEventListener("click",()=>{
+    palette.push(document.querySelector("#colorPicker").value);selectedColor=palette.length-1;buildSwatches();
+  });
+  document.querySelector("#play").addEventListener("click",togglePlayback);
+  document.querySelector("#random").addEventListener("click",randomize);
+  document.querySelector("#reset").addEventListener("click",reset);
+  document.querySelector("#save").addEventListener("click",savePNG);
+  document.querySelector("#record").addEventListener("click",recordVideo);
+  document.querySelector("#toggle").addEventListener("click",togglePanel);
+  window.addEventListener("keydown",handleKey);resize();requestAnimationFrame(update);
+}
+
+// EXPORT
+function savePNG(){
+  try{
+    const link=document.createElement("a");link.download="into-the-void.png";link.href=canvas.toDataURL("image/png");link.click();
+  }catch(error){setStatus(`PNG export failed: ${error.message}`)}
+}
+function recordVideo(){
+  if(recording)return;
+  if(!canvas.captureStream||!window.MediaRecorder){setStatus("Video recording is not supported in this browser.");return}
+  const mime=["video/mp4","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"].find(type=>MediaRecorder.isTypeSupported(type));
+  let stream;
+  try{
+    stream=canvas.captureStream(30);
+    const chunks=[],options=mime?{mimeType:mime}:undefined;
+    recorder=new MediaRecorder(stream,options);recording=true;
+    document.querySelector("#rec").hidden=false;
+    recorder.addEventListener("dataavailable",event=>{if(event.data.size)chunks.push(event.data)});
+    recorder.addEventListener("stop",()=>{
+      recording=false;document.querySelector("#rec").hidden=true;stream.getTracks().forEach(track=>track.stop());
+      if(!chunks.length){setStatus("Recording produced no video data.");return}
+      if(recordingUrl)URL.revokeObjectURL(recordingUrl);
+      const type=recorder.mimeType||mime||"video/webm",blob=new Blob(chunks,{type});
+      recordingUrl=URL.createObjectURL(blob);
+      status.replaceChildren(document.createTextNode("Recording ready · "));
+      const link=document.createElement("a");link.href=recordingUrl;link.download=`into-the-void.${type.includes("mp4")?"mp4":"webm"}`;
+      link.textContent="Save video";link.style.color="#f7b631";link.style.fontWeight="700";status.append(link);
+    },{once:true});
+    recorder.addEventListener("error",event=>{
+      recording=false;document.querySelector("#rec").hidden=true;stream.getTracks().forEach(track=>track.stop());
+      setStatus(`Recording failed: ${event.error?.message||"unknown error"}`);
+    },{once:true});
+    recorder.start(250);setTimeout(()=>{if(recorder?.state==="recording")recorder.stop()},5000);
+  }catch(error){recording=false;document.querySelector("#rec").hidden=true;stream?.getTracks().forEach(track=>track.stop());setStatus(`Recording failed: ${error.message}`)}
+}
+initUI();
+</script>
+</body>
+</html>
